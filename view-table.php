@@ -5,9 +5,9 @@ require_once 'config.php';
 $records_per_page = isset($_GET['per_page']) && is_numeric($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 
-// Sorting settings
-$sort_field = isset($_GET['sort']) ? $_GET['sort'] : 'date';
-$sort_order = isset($_GET['order']) && $_GET['order'] === 'asc' ? 'asc' : 'desc';
+// Sorting settings - change default to descending order
+$sort_field = isset($_GET['sort']) ? $_GET['sort'] : 'pr_number';
+$sort_order = (isset($_GET['order']) && $_GET['order'] === 'asc') ? 'asc' : 'desc'; // Default to desc
 
 // Search settings
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -53,17 +53,27 @@ if ($page < 1) $page = 1;
 if ($page > $total_pages && $total_pages > 0) $page = $total_pages;
 $offset = ($page - 1) * $records_per_page; // Recalculate offset after page validation
 
-// Determine sorting
+// Determine sorting - use if/else instead of match for compatibility
 $order_by = "";
-switch ($sort_field) {
-    case 'date':
-        $order_by = "pr.date " . $sort_order;
-        break;
-    case 'pr_number':
-        $order_by = "pr.pr_number " . $sort_order;
-        break;
-    default:
-        $order_by = "pr.date " . $sort_order;
+if ($sort_field === 'date') {
+    $order_by = "pr.date " . $sort_order . ", pr.pr_number DESC"; // Always put newer PR numbers first when sorting by date
+} elseif ($sort_field === 'pr_number') {
+    // Parse PR number components for proper numeric sorting with DESC as default
+    if ($sort_order === 'desc') {
+        $order_by = "
+            CAST(SUBSTRING(pr.pr_number, 1, 4) AS UNSIGNED) DESC,
+            CAST(SUBSTRING(pr.pr_number, 6, 2) AS UNSIGNED) DESC,
+            CAST(SUBSTRING(pr.pr_number, 9, 4) AS UNSIGNED) DESC
+        ";
+    } else {
+        $order_by = "
+            CAST(SUBSTRING(pr.pr_number, 1, 4) AS UNSIGNED) ASC,
+            CAST(SUBSTRING(pr.pr_number, 6, 2) AS UNSIGNED) ASC,
+            CAST(SUBSTRING(pr.pr_number, 9, 4) AS UNSIGNED) ASC
+        ";
+    }
+} else {
+    $order_by = "pr.pr_number DESC"; // Default to descending
 }
 
 // Get paginated purchase requests with search
@@ -125,24 +135,6 @@ if (isset($_GET['delete'])) {
 }
 
 $suppliers = getSuppliers(); // Get suppliers for the dropdown
-
-// Check for messages in URL or session
-$toast_message = null;
-$toast_type = 'info';
-
-if (isset($_GET['success'])) {
-    $toast_message = htmlspecialchars($_GET['success']);
-    $toast_type = 'success';
-} elseif (isset($_GET['error'])) {
-    $toast_message = htmlspecialchars($_GET['error']);
-    $toast_type = 'error';
-} elseif (isset($_SESSION['toast_message'])) {
-    $toast_message = $_SESSION['toast_message'];
-    $toast_type = $_SESSION['toast_type'] ?? 'info';
-    // Clear session after reading
-    unset($_SESSION['toast_message']);
-    unset($_SESSION['toast_type']);
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -165,7 +157,6 @@ if (isset($_GET['success'])) {
             align-items: center;
             gap: 15px;
             flex-wrap: wrap;
-            position: relative;
         }
         
         .search-box {
@@ -219,36 +210,6 @@ if (isset($_GET['success'])) {
             background-color: #fee;
         }
         
-        /* Loading indicator for search */
-        .search-loading::after {
-            content: '';
-            position: absolute;
-            right: 30px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: translateY(-50%) rotate(0deg); }
-            100% { transform: translateY(-50%) rotate(360deg); }
-        }
-        
-        /* Smooth transitions */
-        tbody {
-            transition: opacity 0.2s ease;
-        }
-        
-        .searching tbody {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-        
         /* Sorting styles */
         .sortable {
             cursor: pointer;
@@ -289,7 +250,7 @@ if (isset($_GET['success'])) {
             border-radius: 2px;
         }
         
-        /* Pagination styles */
+        /* Additional pagination styles */
         .pagination-container {
             display: flex;
             justify-content: space-between;
@@ -431,35 +392,42 @@ if (isset($_GET['success'])) {
             <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
 
             <!-- Search Bar -->
-            <div class="search-container" id="searchContainer">
+            <div class="search-container">
                 <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <form id="searchForm" method="GET" style="display: flex;">
+                    <form id="searchForm" method="GET" style="display: flex; width: 100%;">
                         <input type="text" 
-                               name="search" 
-                               id="searchInput"
-                               placeholder="Search in particulars, suppliers or SO#..." 
-                               value="<?php echo htmlspecialchars($search_term); ?>"
-                               autocomplete="off">
-                        <input type="hidden" name="sort" value="<?php echo htmlspecialchars($sort_field); ?>">
-                        <input type="hidden" name="order" value="<?php echo htmlspecialchars($sort_order); ?>">
-                        <input type="hidden" name="per_page" value="<?php echo $records_per_page; ?>">
-                        <button type="submit" style="display: none;">Search</button>
+                            name="search" 
+                            id="searchInput"
+                            placeholder="Search in particulars or suppliers..." 
+                            value="<?php echo htmlspecialchars($search_term); ?>"
+                            autocomplete="off"
+                            style="flex: 1; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                        <button type="submit" class="btn btn-primary" style="border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 12px 20px;">
+                            <i class="fas fa-search"></i> Search
+                        </button>
                     </form>
                 </div>
+                
+                <!-- New PR Button -->
+                <a href="new-pr.php" class="btn btn-success" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 12px 25px; white-space: nowrap;">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>New PR</span>
+                </a>
                 
                 <?php if (!empty($search_term)): ?>
                     <span class="search-info">
                         <i class="fas fa-filter"></i>
                         Found <?php echo $total_records; ?> result(s) for "<?php echo htmlspecialchars($search_term); ?>"
                     </span>
-                    <a href="view-table.php?sort=<?php echo urlencode($sort_field); ?>&order=<?php echo urlencode($sort_order); ?>&per_page=<?php echo $records_per_page; ?>" class="clear-search" id="clearSearchBtn">
+                    <a href="view-table.php?sort=<?php echo urlencode($sort_field); ?>&order=<?php echo urlencode($sort_order); ?>&per_page=<?php echo $records_per_page; ?>" class="clear-search">
                         <i class="fas fa-times"></i> Clear
                     </a>
                 <?php endif; ?>
             </div>
 
-            <!-- Edit Modal -->
+
+            <!-- Edit Modal (same as before) -->
             <div id="editModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
                 <div class="modal-content" style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -554,7 +522,7 @@ if (isset($_GET['success'])) {
                 </div>
             </div>
 
-            <!-- Delete Confirmation Modal -->
+            <!-- Delete Confirmation Modal (same as before) -->
             <div id="deleteModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
                 <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 10px;">
                     <div class="modal-header" style="margin-bottom: 20px;">
@@ -573,6 +541,20 @@ if (isset($_GET['success'])) {
                 </div>
             </div>
 
+            <?php 
+            // Check for success message in URL
+            if (isset($_GET['success'])) {
+                $_SESSION['toast_message'] = htmlspecialchars($_GET['success']);
+                $_SESSION['toast_type'] = 'success';
+            }
+
+            // Check for error message in URL
+            if (isset($_GET['error'])) {
+                $_SESSION['toast_message'] = htmlspecialchars($_GET['error']);
+                $_SESSION['toast_type'] = 'error';
+            }
+            ?>
+            
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -585,7 +567,7 @@ if (isset($_GET['success'])) {
                             <th class="sortable <?php echo $sort_field === 'pr_number' ? 'active-sort' : ''; ?>" 
                                 onclick="sortTable('pr_number')">
                                 PR Number
-                                <i class="fas fa-sort<?php echo $sort_field === 'pr_number' ? ($sort_order === 'asc' ? '-up' : '-down') : ''; ?>"></i>
+                                <i class="fas fa-sort<?php echo $sort_field === 'pr_number' ? ($sort_order === 'asc' ? '-up' : '-down') : '-down'; ?>"></i>
                             </th>
                             <th>Particulars</th>
                             <th>Amount</th>
@@ -606,10 +588,14 @@ if (isset($_GET['success'])) {
                             <td title="<?php echo htmlspecialchars($pr['particulars']); ?>">
                                 <?php 
                                 $particulars = htmlspecialchars($pr['particulars']);
+                                $display_particulars = strlen($particulars) > 30 ? substr($particulars, 0, 30) . '...' : $particulars;
+                                
                                 if (!empty($search_term)) {
-                                    $particulars = preg_replace('/(' . preg_quote($search_term, '/') . ')/i', '<span class="search-highlight">$1</span>', $particulars);
+                                    // Highlight only in the displayed text
+                                    $pattern = '/' . preg_quote($search_term, '/') . '/i';
+                                    $display_particulars = preg_replace($pattern, '<span class="search-highlight">$0</span>', $display_particulars);
                                 }
-                                echo substr($particulars, 0, 30) . (strlen($pr['particulars']) > 30 ? '...' : ''); 
+                                echo $display_particulars;
                                 ?>
                             </td>
                             <td><?php echo $pr['amount'] ? '₱' . number_format($pr['amount'], 2) : ''; ?></td>
@@ -617,7 +603,8 @@ if (isset($_GET['success'])) {
                                 <?php 
                                 $supplier_html = formatSuppliers($pr['supplier_names'] ?? '');
                                 if (!empty($search_term)) {
-                                    $supplier_html = preg_replace('/(' . preg_quote($search_term, '/') . ')/i', '<span class="search-highlight">$1</span>', $supplier_html);
+                                    $pattern = '/' . preg_quote($search_term, '/') . '/i';
+                                    $supplier_html = preg_replace($pattern, '<span class="search-highlight">$0</span>', $supplier_html);
                                 }
                                 echo $supplier_html; 
                                 ?>
@@ -779,13 +766,13 @@ if (isset($_GET['success'])) {
         // Sort table function
         function sortTable(field) {
             const urlParams = new URLSearchParams(window.location.search);
-            const currentSort = urlParams.get('sort') || 'date';
-            const currentOrder = urlParams.get('order') || 'desc';
+            const currentSort = urlParams.get('sort') || 'pr_number'; // Changed default
+            const currentOrder = urlParams.get('order') || 'asc'; // Changed default to 'asc'
             
-            // Toggle order if same field, otherwise default to desc
-            let newOrder = 'desc';
+            // Toggle order if same field, otherwise default to asc
+            let newOrder = 'asc';
             if (field === currentSort) {
-                newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+                newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
             }
             
             urlParams.set('sort', field);
@@ -806,20 +793,37 @@ if (isset($_GET['success'])) {
                 `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
         }
 
-        // Show toast from PHP
+        // Show toast from PHP session
         document.addEventListener('DOMContentLoaded', function() {
-            <?php if ($toast_message): ?>
-                showToast("<?php echo addslashes($toast_message); ?>", "<?php echo $toast_type; ?>");
-                
-                // Remove success/error parameters from URL without reloading
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.has('success') || urlParams.has('error')) {
-                    urlParams.delete('success');
-                    urlParams.delete('error');
-                    const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-                    window.history.replaceState({}, '', newUrl);
-                }
+            <?php if (isset($_SESSION['toast_message'])): ?>
+                showToast("<?php echo addslashes($_SESSION['toast_message']); ?>", "<?php echo $_SESSION['toast_type'] ?? 'info'; ?>");
+                <?php 
+                // Clear the session message after showing
+                unset($_SESSION['toast_message']);
+                unset($_SESSION['toast_type']);
+                ?>
             <?php endif; ?>
+            
+            // Also handle success/error messages from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const successMessage = urlParams.get('success');
+            const errorMessage = urlParams.get('error');
+            
+            if (successMessage) {
+                showToast(successMessage, 'success');
+                // Remove success parameter from URL without reloading
+                urlParams.delete('success');
+                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                window.history.replaceState({}, '', newUrl);
+            }
+            
+            if (errorMessage) {
+                showToast(errorMessage, 'error');
+                // Remove error parameter from URL without reloading
+                urlParams.delete('error');
+                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                window.history.replaceState({}, '', newUrl);
+            }
             
             // Set up delete confirmation button
             document.getElementById('confirmDeleteBtn').addEventListener('click', deletePR);
@@ -855,87 +859,7 @@ if (isset($_GET['success'])) {
                     closeDeleteModal();
                 }
             });
-
-            // Real-time search functionality
-            const searchInput = document.getElementById('searchInput');
-            const searchContainer = document.getElementById('searchContainer');
             
-            if (searchInput) {
-                let searchTimeout;
-                
-                // Function to perform search
-                function performSearch() {
-                    const searchTerm = searchInput.value.trim();
-                    const urlParams = new URLSearchParams(window.location.search);
-                    
-                    if (searchTerm) {
-                        urlParams.set('search', searchTerm);
-                    } else {
-                        urlParams.delete('search');
-                    }
-                    
-                    // Reset to first page when searching
-                    urlParams.set('page', '1');
-                    
-                    // Preserve other parameters
-                    const sort = urlParams.get('sort') || 'date';
-                    const order = urlParams.get('order') || 'desc';
-                    const per_page = urlParams.get('per_page') || '10';
-                    
-                    urlParams.set('sort', sort);
-                    urlParams.set('order', order);
-                    urlParams.set('per_page', per_page);
-                    
-                    // Add loading indicator
-                    document.body.classList.add('searching');
-                    
-                    // Navigate to search results
-                    window.location.href = window.location.pathname + '?' + urlParams.toString();
-                }
-                
-                // Debounced search
-                searchInput.addEventListener('input', function() {
-                    clearTimeout(searchTimeout);
-                    
-                    // Add loading class to container
-                    if (searchContainer) {
-                        searchContainer.classList.add('search-loading');
-                    }
-                    document.body.classList.add('searching');
-                    
-                    searchTimeout = setTimeout(() => {
-                        if (searchContainer) {
-                            searchContainer.classList.remove('search-loading');
-                        }
-                        performSearch();
-                    }, 500);
-                });
-                
-                // Prevent form submission on enter (since we're doing real-time)
-                const searchForm = document.getElementById('searchForm');
-                if (searchForm) {
-                    searchForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        if (searchContainer) {
-                            searchContainer.classList.remove('search-loading');
-                        }
-                        performSearch();
-                    });
-                }
-                
-                // Add clear button functionality
-                const clearSearch = document.getElementById('clearSearchBtn');
-                if (clearSearch) {
-                    clearSearch.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        searchInput.value = '';
-                        if (searchContainer) {
-                            searchContainer.classList.remove('search-loading');
-                        }
-                        performSearch();
-                    });
-                }
-            }
         });
 
         async function openEditModal(id) {

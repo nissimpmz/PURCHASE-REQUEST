@@ -47,33 +47,75 @@ try {
         $_POST['id']
     ]);
     
-    // Delete existing supplier associations
+    // Delete existing supplier associations (this removes ALL current suppliers)
     $sql = "DELETE FROM pr_suppliers WHERE pr_id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->execute([$_POST['id']]);
     
-    // Add new supplier associations
+    // Process suppliers - handle both selected and new suppliers
+    $supplierIds = [];
+    
+    // Handle existing selected suppliers from the comma-separated string
     if (!empty($_POST['suppliers'])) {
         $suppliers = explode(',', $_POST['suppliers']);
-        
-        if (!empty($suppliers)) {
-            $sql = "INSERT INTO pr_suppliers (pr_id, supplier_id) VALUES (?, ?)";
-            $stmt = $conn->prepare($sql);
-            
-            foreach ($suppliers as $supplierId) {
-                $supplierId = trim($supplierId);
-                if (!empty($supplierId) && is_numeric($supplierId)) {
-                    $stmt->execute([$_POST['id'], $supplierId]);
+        foreach ($suppliers as $supplierId) {
+            $supplierId = intval(trim($supplierId));
+            if ($supplierId > 0) {
+                $supplierIds[] = $supplierId;
+            }
+        }
+    }
+    
+    // Handle new suppliers typed in (from autocomplete)
+    if (isset($_POST['new_suppliers']) && is_array($_POST['new_suppliers'])) {
+        foreach ($_POST['new_suppliers'] as $newSupplierName) {
+            $newSupplierName = trim($newSupplierName);
+            if (!empty($newSupplierName)) {
+                // Check if supplier already exists
+                $checkSql = "SELECT id FROM suppliers WHERE name = ?";
+                $checkStmt = $conn->prepare($checkSql);
+                $checkStmt->execute([$newSupplierName]);
+                $existingSupplier = $checkStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($existingSupplier) {
+                    // Use existing supplier
+                    $supplierIds[] = $existingSupplier['id'];
+                } else {
+                    // Insert new supplier
+                    $insertSql = "INSERT INTO suppliers (name) VALUES (?)";
+                    $insertStmt = $conn->prepare($insertSql);
+                    $insertStmt->execute([$newSupplierName]);
+                    $supplierIds[] = $conn->lastInsertId();
                 }
             }
         }
     }
     
-    // After successful update
-    $_SESSION['toast_message'] = 'Purchase Request updated successfully!';
-    $_SESSION['toast_type'] = 'success';
-    header('Location: view-table.php');
-    exit;
+    // Insert supplier associations (only if there are suppliers to add)
+    if (!empty($supplierIds)) {
+        $sql = "INSERT INTO pr_suppliers (pr_id, supplier_id) VALUES (?, ?)";
+        $stmt = $conn->prepare($sql);
+        
+        // Use array_unique to prevent duplicate supplier IDs
+        $uniqueSupplierIds = array_unique($supplierIds);
+        
+        foreach ($uniqueSupplierIds as $supplierId) {
+            $stmt->execute([$_POST['id'], $supplierId]);
+        }
+        
+        $addedCount = count($uniqueSupplierIds);
+    } else {
+        $addedCount = 0;
+    }
+    
+    // Commit transaction
+    $conn->commit();
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Purchase Request updated successfully!',
+        'suppliers_added' => $addedCount ?? 0
+    ]);
     
 } catch (Exception $e) {
     // Rollback on error

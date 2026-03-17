@@ -26,14 +26,18 @@ function generatePRNumber($date = null, $manualBase = null) {
     }
     
     $conn = getConnection();
-    $yearMonth = date('Y-m', strtotime($date));
+    $year = date('Y', strtotime($date));
     
     // If manual base is provided (for historical records)
     if ($manualBase) {
         // Check if this base number already exists
         $sql = "SELECT pr_number FROM purchase_requests 
                 WHERE pr_number LIKE :base_pattern 
-                ORDER BY pr_number ASC 
+                ORDER BY 
+                    CAST(SUBSTRING(pr_number, 1, 4) AS UNSIGNED) DESC,
+                    CAST(SUBSTRING(pr_number, 6, 2) AS UNSIGNED) DESC,
+                    CAST(SUBSTRING(pr_number, 9, 4) AS UNSIGNED) DESC,
+                    LENGTH(pr_number) DESC
                 LIMIT 1";
         $stmt = $conn->prepare($sql);
         $basePattern = $manualBase . '%';
@@ -68,27 +72,33 @@ function generatePRNumber($date = null, $manualBase = null) {
         }
     }
     
-    // Normal PR number generation (for current records)
-    $year = date('Y', strtotime($date));
+    // Normal PR number generation - FIXED to use year only, not month
+    // Get the highest PR number for this year (across all months)
+    $sql = "SELECT pr_number FROM purchase_requests 
+            WHERE pr_number LIKE :year_pattern
+            AND pr_number NOT LIKE '%-%[A-Z]'
+            AND pr_number REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{3}$'
+            ORDER BY 
+                CAST(SUBSTRING(pr_number, 9, 4) AS UNSIGNED) DESC
+            LIMIT 1";
     
-    // Get the highest PR number for this year
-    $sql = "SELECT MAX(CAST(SUBSTRING(pr_number, 1, 4) AS UNSIGNED)) as max_year,
-                   MAX(CAST(SUBSTRING(pr_number, 9, 3) AS UNSIGNED)) as max_number
-            FROM purchase_requests 
-            WHERE pr_number NOT LIKE '%-%[A-Z]'
-            AND pr_number REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{3}$'";
-    
-    $stmt = $conn->query($sql);
+    $stmt = $conn->prepare($sql);
+    $yearPattern = $year . '-%';  // Only filter by year, not month
+    $stmt->bindParam(':year_pattern', $yearPattern);
+    $stmt->execute();
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if ($result && $result['max_year'] == $year && $result['max_number'] !== null) {
-        $lastNumber = intval($result['max_number']);
+    if ($result) {
+        $lastPR = $result['pr_number'];
+        $lastNumber = intval(substr($lastPR, -3));
         $newNumber = $lastNumber + 1;
     } else {
         $newNumber = 1;
     }
     
-    return $yearMonth . '-' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
+    // Format with current month (YYYY-MM-NNN)
+    $month = date('m', strtotime($date));
+    return $year . '-' . $month . '-' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
 }
 
 // Function to generate PO number (same logic as PR number)

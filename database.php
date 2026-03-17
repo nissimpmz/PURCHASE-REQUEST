@@ -24,7 +24,7 @@ function initializeDatabase() {
     $sql = "CREATE TABLE IF NOT EXISTS purchase_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
         date DATE NOT NULL,
-        pr_number VARCHAR(20 ) UNIQUE NOT NULL,
+        pr_number VARCHAR(20) UNIQUE NOT NULL,
         particulars TEXT NOT NULL,
         amount DECIMAL(12,2),
         po_number VARCHAR(20),

@@ -46,34 +46,38 @@ require_once 'config.php';
             </header>
 
             <div class="dashboard-cards">
-                <div class="card">
-                    <div class="card-icon" style="background-color: #4CAF50;">
-                        <i class="fas fa-file-alt"></i>
+                <a href="view-table.php" style="text-decoration: none; color: inherit;">
+                    <div class="card">
+                        <div class="card-icon" style="background-color: #4CAF50;">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="card-info">
+                            <h3>Total PRs</h3>
+                            <?php
+                            $conn = getConnection();
+                            $stmt = $conn->query("SELECT COUNT(*) as count FROM purchase_requests");
+                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                            echo "<p>" . $result['count'] . "</p>";
+                            ?>
+                        </div>
                     </div>
-                    <div class="card-info">
-                        <h3>Total PRs</h3>
-                        <?php
-                        $conn = getConnection();
-                        $stmt = $conn->query("SELECT COUNT(*) as count FROM purchase_requests");
-                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                        echo "<p>" . $result['count'] . "</p>";
-                        ?>
-                    </div>
-                </div>
+                </a>
 
-                <div class="card">
-                    <div class="card-icon" style="background-color: #2196F3;">
-                        <i class="fas fa-users"></i>
+                <a href="new-supplier.php" style="text-decoration: none; color: inherit;">
+                    <div class="card">
+                        <div class="card-icon" style="background-color: #2196F3;">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="card-info">
+                            <h3>Suppliers</h3>
+                            <?php
+                            $stmt = $conn->query("SELECT COUNT(*) as count FROM suppliers");
+                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                            echo "<p>" . $result['count'] . "</p>";
+                            ?>
+                        </div>
                     </div>
-                    <div class="card-info">
-                        <h3>Suppliers</h3>
-                        <?php
-                        $stmt = $conn->query("SELECT COUNT(*) as count FROM suppliers");
-                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                        echo "<p>" . $result['count'] . "</p>";
-                        ?>
-                    </div>
-                </div>
+                </a>
 
                 <div class="card">
                     <div class="card-icon" style="background-color: #FF9800;">
@@ -105,11 +109,16 @@ require_once 'config.php';
             </div>
 
             <div class="recent-prs">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h2>Recent Purchase Requests</h2>
-                    <a href="view-table.php" class="btn btn-primary" style="text-decoration: none;">
-                        <i class="fas fa-eye"></i> View All
-                    </a>
+                    <div style="display: flex; gap: 10px;">
+                        <a href="new-pr.php" class="btn btn-success" style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-plus-circle"></i> New PR
+                        </a>
+                        <a href="view-table.php" class="btn btn-primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-eye"></i> View All
+                        </a>
+                    </div>
                 </div>
                 <table>
                     <thead>
@@ -131,9 +140,9 @@ require_once 'config.php';
                                 LEFT JOIN suppliers s ON ps.supplier_id = s.id
                                 GROUP BY pr.id
                                 ORDER BY 
-                                    CAST(SUBSTRING(pr.pr_number, 1, 4) AS UNSIGNED) ASC,
-                                    CAST(SUBSTRING(pr.pr_number, 6, 2) AS UNSIGNED) ASC,
-                                    CAST(SUBSTRING(pr.pr_number, 9, 4) AS UNSIGNED) ASC
+                                    CAST(SUBSTRING(pr.pr_number, 1, 4) AS UNSIGNED) DESC,
+                                    CAST(SUBSTRING(pr.pr_number, 6, 2) AS UNSIGNED) DESC,
+                                    CAST(SUBSTRING(pr.pr_number, 9, 4) AS UNSIGNED) DESC
                                 LIMIT 10";
                         $stmt = $conn->query($sql);
                         $prs = $stmt->fetchAll(PDO::FETCH_ASSOC);

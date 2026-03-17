@@ -1228,3 +1228,71 @@ textarea.form-control {
         width: 100%;
     }
 }
+/* New button styles */
+.btn-success {
+    background-color: #27ae60;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-success:hover {
+    background-color: #219653;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);
+}
+
+.btn-success i {
+    font-size: 16px;
+}
+
+/* Update header actions for better spacing */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Make sure the new button matches other header buttons */
+.header-actions a.header-btn {
+    text-decoration: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .recent-prs > div {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .recent-prs > div > div {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .recent-prs > div > div a {
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .header-actions a,
+    .header-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+}

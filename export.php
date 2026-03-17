@@ -47,7 +47,7 @@ if (!empty($whereClauses)) {
 }
 
 $sql .= " GROUP BY pr.id 
-          ORDER BY  
+          ORDER BY 
             CAST(SUBSTRING(pr.pr_number, 1, 4) AS UNSIGNED) ASC, -- Year
             CAST(SUBSTRING(pr.pr_number, 6, 2) AS UNSIGNED) ASC, -- Month
             CAST(SUBSTRING(pr.pr_number, 9, 4) AS UNSIGNED) ASC, -- Number
@@ -58,6 +58,7 @@ $stmt = $conn->prepare($sql);
 $stmt->execute($params);
 $purchaseRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>
