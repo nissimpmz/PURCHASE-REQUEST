@@ -22,7 +22,7 @@ try {
     // Start transaction
     $conn->beginTransaction();
     
-    // Update purchase request
+    // Update purchase request - add so_number to the field list
     $sql = "UPDATE purchase_requests SET 
             date = ?, 
             particulars = ?, 
@@ -31,9 +31,10 @@ try {
             po_number = ?, 
             po_date = ?, 
             iar_number = ?, 
-            iar_date = ? 
+            iar_date = ?,
+            so_number = ? 
             WHERE id = ?";
-    
+
     $stmt = $conn->prepare($sql);
     $stmt->execute([
         $_POST['date'],
@@ -44,6 +45,7 @@ try {
         !empty($_POST['po_date']) ? $_POST['po_date'] : null,
         !empty($_POST['iar_number']) ? $_POST['iar_number'] : null,
         !empty($_POST['iar_date']) ? $_POST['iar_date'] : null,
+        !empty($_POST['so_number']) ? $_POST['so_number'] : null, // Add this line
         $_POST['id']
     ]);
     

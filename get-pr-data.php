@@ -41,6 +41,7 @@ try {
             'po_date' => $pr['po_date'],
             'iar_number' => $pr['iar_number'],
             'iar_date' => $pr['iar_date'],
+            'so_number' => $pr['so_number'],
             'supplier_ids' => $pr['supplier_ids'] ? explode(',', $pr['supplier_ids']) : [],
             'supplier_names' => $pr['supplier_names']
         ]

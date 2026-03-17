@@ -20,7 +20,7 @@ function getConnection() {
 function initializeDatabase() {
     $conn = getConnection();
     
-    // Create purchase_requests table
+    // Create purchase_requests table with SO# column
     $sql = "CREATE TABLE IF NOT EXISTS purchase_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
         date DATE NOT NULL,
@@ -32,10 +32,21 @@ function initializeDatabase() {
         contract_amount DECIMAL(12,2),
         iar_number VARCHAR(20),
         iar_date DATE,
+        so_number VARCHAR(50) NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )";
     
     $conn->exec($sql);
+    
+    // Check if so_number column exists, add if not
+    try {
+        $checkColumn = $conn->query("SHOW COLUMNS FROM purchase_requests LIKE 'so_number'");
+        if ($checkColumn->rowCount() == 0) {
+            $conn->exec("ALTER TABLE purchase_requests ADD COLUMN so_number VARCHAR(50) NULL AFTER iar_date");
+        }
+    } catch (Exception $e) {
+        // Column might already exist or table doesn't exist yet
+    }
     
     // Create suppliers table (SIMPLIFIED - only name)
     $sql = "CREATE TABLE IF NOT EXISTS suppliers (

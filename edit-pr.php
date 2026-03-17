@@ -222,6 +222,21 @@ $suppliers = getSuppliers();
             padding: 12px 20px;
             white-space: nowrap;
         }
+
+        /* SO# field specific styles */
+        .so-number-field {
+            background-color: #f9f9f9;
+        }
+        
+        .so-number-field:focus {
+            background-color: #fff;
+        }
+        
+        .field-hint {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -317,6 +332,27 @@ $suppliers = getSuppliers();
                 <div class="form-group">
                     <label for="edit_iar_date">IAR Date</label>
                     <input type="date" id="edit_iar_date" name="iar_date">
+                </div>
+            </div>
+
+            <!-- SO# Field - Add this section -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_so_number">
+                        <i class="fas fa-hashtag" style="color: #3498db;"></i> SO # (Sales Order)
+                    </label>
+                    <input type="text" 
+                           id="edit_so_number" 
+                           name="so_number" 
+                           class="so-number-field"
+                           placeholder="Enter Sales Order Number"
+                           value="">
+                    <div class="field-hint">
+                        <i class="fas fa-info-circle"></i> Enter the Sales Order number manually
+                    </div>
+                </div>
+                <div class="form-group">
+                    <!-- Empty column for spacing -->
                 </div>
             </div>
 
@@ -476,6 +512,12 @@ $suppliers = getSuppliers();
                     document.getElementById('edit_po_date').value = pr.po_date || '';
                     document.getElementById('edit_iar_number').value = pr.iar_number || '';
                     document.getElementById('edit_iar_date').value = pr.iar_date || '';
+                    
+                    // IMPORTANT: Set the SO# value - this ensures it displays when editing
+                    document.getElementById('edit_so_number').value = pr.so_number || '';
+                    
+                    // Log for debugging (remove in production)
+                    console.log('Loaded SO#:', pr.so_number);
                     
                     // Set selected suppliers - convert existing supplier IDs to proper objects
                     if (pr.supplier_ids && pr.supplier_ids.length > 0) {
@@ -692,6 +734,9 @@ $suppliers = getSuppliers();
             submitBtn.disabled = true;
             
             const formData = new FormData(this);
+            
+            // Log the SO# value being sent (for debugging)
+            console.log('Submitting SO#:', formData.get('so_number'));
             
             try {
                 const response = await fetch('update-pr.php', {

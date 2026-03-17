@@ -151,6 +151,17 @@ function getSuppliers() {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Function to get unique SO numbers for dropdown
+function getSONumbers() {
+    $conn = getConnection();
+    $sql = "SELECT DISTINCT so_number 
+            FROM purchase_requests 
+            WHERE so_number IS NOT NULL AND so_number != '' 
+            ORDER BY so_number ASC";
+    $stmt = $conn->query($sql);
+    return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
 // Function to format suppliers for display
 function formatSuppliers($supplierNames) {
     if (empty($supplierNames)) {

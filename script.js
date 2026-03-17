@@ -770,6 +770,7 @@ function generatePrintDocument(requests, startDate = null, endDate = null) {
                         <th style="width: 80px;">Contract Amount</th>
                         <th style="width: 60px;">IAR #</th>
                         <th style="width: 60px;">IAR Date</th>
+                        <th style="width: 60px;">SO #</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -789,6 +790,7 @@ function generatePrintDocument(requests, startDate = null, endDate = null) {
                 <td style="text-align: right;">${request.contract_amount ? '₱' + parseFloat(request.contract_amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,') : ''}</td>
                 <td>${request.iar_number || ''}</td>
                 <td>${request.iar_date || ''}</td>
+                <td>${request.so_number || ''}</td>
             </tr>`;
         
         rowCount++;

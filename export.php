@@ -107,6 +107,7 @@ $purchaseRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <th>Contract Amount</th>
                 <th>IAR #</th>
                 <th>IAR Date</th>
+                <th>SO #</th>
             </tr>
         </thead>
         <tbody>
@@ -142,6 +143,7 @@ $purchaseRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td style="text-align: right;"><?php echo $pr['contract_amount'] ? '₱' . number_format($pr['contract_amount'], 2) : ''; ?></td>
                 <td><?php echo htmlspecialchars($pr['iar_number'] ?? ''); ?></td>
                 <td><?php echo $pr['iar_date_formatted'] ?? ''; ?></td>
+                <td><?php echo htmlspecialchars($pr['so_number'] ?? ''); ?></td> 
             </tr>
             <?php endforeach; ?>
             

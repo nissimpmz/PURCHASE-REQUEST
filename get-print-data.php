@@ -11,7 +11,7 @@ try {
     $startDate = $_GET['start_date'] ?? null;
     $endDate = $_GET['end_date'] ?? null;
     
-    // Build the query - SIMPLIFIED VERSION
+    // Build the query - add so_number
     $sql = "SELECT 
                 pr.id,
                 pr.date,
@@ -23,6 +23,7 @@ try {
                 pr.contract_amount,
                 pr.iar_number,
                 pr.iar_date,
+                pr.so_number,
                 pr.created_at,
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ', ') as supplier_names
             FROM purchase_requests pr
@@ -72,6 +73,7 @@ try {
             'contract_amount' => $request['contract_amount'],
             'iar_number' => $request['iar_number'],
             'iar_date' => $request['iar_date'],
+            'so_number' => $request['so_number'] ?? '', // Add this line
             'created_at' => $request['created_at']
         ];
     }, $requests);

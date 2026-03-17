@@ -28,10 +28,11 @@ $params = [];
 
 if (!empty($search_term)) {
     $search_term_like = '%' . $search_term . '%';
-    $where_clauses[] = "(pr.particulars LIKE :search_term OR s.name LIKE :search_term)";
+    $where_clauses[] = "(pr.particulars LIKE :search_term OR s.name LIKE :search_term OR pr.so_number LIKE :search_term)";
     $params[':search_term'] = $search_term_like;
 }
 
+// IMPORTANT: Define $where_sql here - it will be empty string if no search
 $where_sql = !empty($where_clauses) ? "WHERE " . implode(" AND ", $where_clauses) : "";
 
 // Get total records count with search
@@ -53,12 +54,12 @@ if ($page < 1) $page = 1;
 if ($page > $total_pages && $total_pages > 0) $page = $total_pages;
 $offset = ($page - 1) * $records_per_page; // Recalculate offset after page validation
 
-// Determine sorting - use if/else instead of match for compatibility
+// Determine sorting
 $order_by = "";
 if ($sort_field === 'date') {
-    $order_by = "pr.date " . $sort_order . ", pr.pr_number DESC"; // Always put newer PR numbers first when sorting by date
+    $order_by = "pr.date " . $sort_order . ", pr.pr_number DESC";
 } elseif ($sort_field === 'pr_number') {
-    // Parse PR number components for proper numeric sorting with DESC as default
+    // Parse PR number components for proper numeric sorting
     if ($sort_order === 'desc') {
         $order_by = "
             CAST(SUBSTRING(pr.pr_number, 1, 4) AS UNSIGNED) DESC,
@@ -95,7 +96,7 @@ foreach ($params as $key => $value) {
 $stmt->execute();
 $purchaseRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Handle delete operations (same as before)
+// Handle delete operations
 if (isset($_GET['delete'])) {
     try {
         $conn = getConnection();
@@ -327,6 +328,23 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
             box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
         }
         
+        /* SO# tag styles */
+        .so-tag {
+            display: inline-block;
+            background-color: #e8f4f8;
+            color: #2980b9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid #b8e2f2;
+        }
+        
+        .so-tag i {
+            margin-right: 4px;
+            font-size: 10px;
+        }
+        
         @media (max-width: 768px) {
             .pagination-container {
                 flex-direction: column;
@@ -399,7 +417,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                         <input type="text" 
                             name="search" 
                             id="searchInput"
-                            placeholder="Search in particulars or suppliers..." 
+                            placeholder="Search in particulars, suppliers, or SO#..." 
                             value="<?php echo htmlspecialchars($search_term); ?>"
                             autocomplete="off"
                             style="flex: 1; border-top-right-radius: 0; border-bottom-right-radius: 0;">
@@ -426,8 +444,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                 <?php endif; ?>
             </div>
 
-
-            <!-- Edit Modal (same as before) -->
+            <!-- Edit Modal -->
             <div id="editModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
                 <div class="modal-content" style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -510,6 +527,23 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                             </div>
                         </div>
 
+                        <!-- SO# Field -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit_so_number">
+                                    <i class="fas fa-hashtag" style="color: #3498db;"></i> SO # (Sales Order)
+                                </label>
+                                <input type="text" 
+                                       id="edit_so_number" 
+                                       name="so_number" 
+                                       class="form-control"
+                                       placeholder="Enter Sales Order Number">
+                            </div>
+                            <div class="form-group">
+                                <!-- Empty column for spacing -->
+                            </div>
+                        </div>
+
                         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
                             <button type="button" onclick="closeEditModal()" class="btn btn-danger">
                                 <i class="fas fa-times"></i> Cancel
@@ -522,7 +556,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                 </div>
             </div>
 
-            <!-- Delete Confirmation Modal (same as before) -->
+            <!-- Delete Confirmation Modal -->
             <div id="deleteModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
                 <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 10px;">
                     <div class="modal-header" style="margin-bottom: 20px;">
@@ -577,6 +611,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                             <th>Contract Amount</th>
                             <th>IAR #</th>
                             <th>IAR Date</th>
+                            <th>SO #</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -614,6 +649,14 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                             <td><?php echo $pr['contract_amount'] ? '₱' . number_format($pr['contract_amount'], 2) : ''; ?></td>
                             <td><?php echo htmlspecialchars($pr['iar_number'] ?? ''); ?></td>
                             <td><?php echo $pr['iar_date'] ? date('Y-m-d', strtotime($pr['iar_date'])) : ''; ?></td>
+                            <td>
+                                <?php if (!empty($pr['so_number'])): ?>
+                                    <span class="so-tag">
+                                        <i class="fas fa-hashtag"></i>
+                                        <?php echo htmlspecialchars($pr['so_number']); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </td>
                             <td style="white-space: nowrap;">
                                 <div style="display: flex; gap: 8px; align-items: center; justify-content: center;">
                                     <button onclick="window.open('edit-pr.php?id=<?php echo $pr['id']; ?>', 'EditPR', 'width=900,height=700,resizable=yes,scrollbars=yes')" 
@@ -631,7 +674,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                         
                         <?php if (count($purchaseRequests) === 0): ?>
                         <tr>
-                            <td colspan="11" style="text-align: center; padding: 50px; color: #7f8c8d;">
+                            <td colspan="12" style="text-align: center; padding: 50px; color: #7f8c8d;">
                                 <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
                                 <p style="font-size: 1.1rem;">No purchase requests found</p>
                                 <?php if (!empty($search_term)): ?>
@@ -766,11 +809,11 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
         // Sort table function
         function sortTable(field) {
             const urlParams = new URLSearchParams(window.location.search);
-            const currentSort = urlParams.get('sort') || 'pr_number'; // Changed default
-            const currentOrder = urlParams.get('order') || 'asc'; // Changed default to 'asc'
+            const currentSort = urlParams.get('sort') || 'pr_number';
+            const currentOrder = urlParams.get('order') || 'desc';
             
-            // Toggle order if same field, otherwise default to asc
-            let newOrder = 'asc';
+            // Toggle order if same field, otherwise default to desc for PR number, asc for others
+            let newOrder = 'desc';
             if (field === currentSort) {
                 newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
             }
@@ -780,17 +823,6 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
             urlParams.set('page', 1); // Reset to first page
             
             window.location.href = window.location.pathname + '?' + urlParams.toString();
-        }
-
-        // Simple edit function that opens in new window
-        function editPR(id) {
-            const width = 900;
-            const height = 700;
-            const left = (window.innerWidth - width) / 2;
-            const top = (window.innerHeight - height) / 2;
-            
-            window.open(`edit-pr.php?id=${id}`, 'editPR', 
-                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
         }
 
         // Show toast from PHP session
@@ -859,7 +891,6 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                     closeDeleteModal();
                 }
             });
-            
         });
 
         async function openEditModal(id) {
@@ -899,6 +930,9 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                     document.getElementById('edit_po_date').value = pr.po_date || '';
                     document.getElementById('edit_iar_number').value = pr.iar_number || '';
                     document.getElementById('edit_iar_date').value = pr.iar_date || '';
+                    
+                    // IMPORTANT: Set the SO# value
+                    document.getElementById('edit_so_number').value = pr.so_number || '';
                     
                     // Load suppliers
                     editSelectedSuppliers = pr.supplier_ids || [];
@@ -1104,7 +1138,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                             // If no rows left, show message
                             const tbody = document.querySelector('tbody');
                             if (tbody && tbody.children.length === 0) {
-                                tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px;">No purchase requests found</td></tr>';
+                                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">No purchase requests found</td></tr>';
                             } else {
                                 // Refresh the page to update pagination
                                 window.location.reload();
