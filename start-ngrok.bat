@@ -1,0 +1,9 @@
+@echo off
+echo Starting PHP server on port 8080...
+start /B php -S localhost:8080
+
+echo Waiting for PHP server to start...
+timeout /t 3 /nobreak
+
+echo Starting ngrok...
+ngrok http 8080
