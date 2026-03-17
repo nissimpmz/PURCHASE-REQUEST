@@ -81,8 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $conn->commit();
         
-        // Redirect with success message
-        header('Location: view-table.php?success=Purchase Request created successfully!');
+        // Redirect with success message using session instead of URL parameter
+        $_SESSION['toast_message'] = 'Purchase Request created successfully!';
+        $_SESSION['toast_type'] = 'success';
+        header('Location: view-table.php');
         exit;
         
     } catch (Exception $e) {

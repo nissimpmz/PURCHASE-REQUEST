@@ -125,6 +125,24 @@ if (isset($_GET['delete'])) {
 }
 
 $suppliers = getSuppliers(); // Get suppliers for the dropdown
+
+// Check for messages in URL or session
+$toast_message = null;
+$toast_type = 'info';
+
+if (isset($_GET['success'])) {
+    $toast_message = htmlspecialchars($_GET['success']);
+    $toast_type = 'success';
+} elseif (isset($_GET['error'])) {
+    $toast_message = htmlspecialchars($_GET['error']);
+    $toast_type = 'error';
+} elseif (isset($_SESSION['toast_message'])) {
+    $toast_message = $_SESSION['toast_message'];
+    $toast_type = $_SESSION['toast_type'] ?? 'info';
+    // Clear session after reading
+    unset($_SESSION['toast_message']);
+    unset($_SESSION['toast_type']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -147,6 +165,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
             align-items: center;
             gap: 15px;
             flex-wrap: wrap;
+            position: relative;
         }
         
         .search-box {
@@ -200,6 +219,36 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
             background-color: #fee;
         }
         
+        /* Loading indicator for search */
+        .search-loading::after {
+            content: '';
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+        
+        /* Smooth transitions */
+        tbody {
+            transition: opacity 0.2s ease;
+        }
+        
+        .searching tbody {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
         /* Sorting styles */
         .sortable {
             cursor: pointer;
@@ -240,7 +289,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
             border-radius: 2px;
         }
         
-        /* Additional pagination styles */
+        /* Pagination styles */
         .pagination-container {
             display: flex;
             justify-content: space-between;
@@ -382,14 +431,14 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
             <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
 
             <!-- Search Bar -->
-            <div class="search-container">
+            <div class="search-container" id="searchContainer">
                 <div class="search-box">
                     <i class="fas fa-search"></i>
                     <form id="searchForm" method="GET" style="display: flex;">
                         <input type="text" 
                                name="search" 
                                id="searchInput"
-                               placeholder="Search in particulars or suppliers..." 
+                               placeholder="Search in particulars, suppliers or SO#..." 
                                value="<?php echo htmlspecialchars($search_term); ?>"
                                autocomplete="off">
                         <input type="hidden" name="sort" value="<?php echo htmlspecialchars($sort_field); ?>">
@@ -404,13 +453,13 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                         <i class="fas fa-filter"></i>
                         Found <?php echo $total_records; ?> result(s) for "<?php echo htmlspecialchars($search_term); ?>"
                     </span>
-                    <a href="view-table.php?sort=<?php echo urlencode($sort_field); ?>&order=<?php echo urlencode($sort_order); ?>&per_page=<?php echo $records_per_page; ?>" class="clear-search">
+                    <a href="view-table.php?sort=<?php echo urlencode($sort_field); ?>&order=<?php echo urlencode($sort_order); ?>&per_page=<?php echo $records_per_page; ?>" class="clear-search" id="clearSearchBtn">
                         <i class="fas fa-times"></i> Clear
                     </a>
                 <?php endif; ?>
             </div>
 
-            <!-- Edit Modal (same as before) -->
+            <!-- Edit Modal -->
             <div id="editModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center;">
                 <div class="modal-content" style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -505,7 +554,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                 </div>
             </div>
 
-            <!-- Delete Confirmation Modal (same as before) -->
+            <!-- Delete Confirmation Modal -->
             <div id="deleteModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
                 <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 10px;">
                     <div class="modal-header" style="margin-bottom: 20px;">
@@ -524,20 +573,6 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                 </div>
             </div>
 
-            <?php 
-            // Check for success message in URL
-            if (isset($_GET['success'])) {
-                $_SESSION['toast_message'] = htmlspecialchars($_GET['success']);
-                $_SESSION['toast_type'] = 'success';
-            }
-
-            // Check for error message in URL
-            if (isset($_GET['error'])) {
-                $_SESSION['toast_message'] = htmlspecialchars($_GET['error']);
-                $_SESSION['toast_type'] = 'error';
-            }
-            ?>
-            
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -771,37 +806,20 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                 `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
         }
 
-        // Show toast from PHP session
+        // Show toast from PHP
         document.addEventListener('DOMContentLoaded', function() {
-            <?php if (isset($_SESSION['toast_message'])): ?>
-                showToast("<?php echo addslashes($_SESSION['toast_message']); ?>", "<?php echo $_SESSION['toast_type'] ?? 'info'; ?>");
-                <?php 
-                // Clear the session message after showing
-                unset($_SESSION['toast_message']);
-                unset($_SESSION['toast_type']);
-                ?>
+            <?php if ($toast_message): ?>
+                showToast("<?php echo addslashes($toast_message); ?>", "<?php echo $toast_type; ?>");
+                
+                // Remove success/error parameters from URL without reloading
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('success') || urlParams.has('error')) {
+                    urlParams.delete('success');
+                    urlParams.delete('error');
+                    const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                    window.history.replaceState({}, '', newUrl);
+                }
             <?php endif; ?>
-            
-            // Also handle success/error messages from URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const successMessage = urlParams.get('success');
-            const errorMessage = urlParams.get('error');
-            
-            if (successMessage) {
-                showToast(successMessage, 'success');
-                // Remove success parameter from URL without reloading
-                urlParams.delete('success');
-                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-                window.history.replaceState({}, '', newUrl);
-            }
-            
-            if (errorMessage) {
-                showToast(errorMessage, 'error');
-                // Remove error parameter from URL without reloading
-                urlParams.delete('error');
-                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-                window.history.replaceState({}, '', newUrl);
-            }
             
             // Set up delete confirmation button
             document.getElementById('confirmDeleteBtn').addEventListener('click', deletePR);
@@ -837,17 +855,86 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                     closeDeleteModal();
                 }
             });
-            
-            // Add search debounce (optional)
+
+            // Real-time search functionality
             const searchInput = document.getElementById('searchInput');
+            const searchContainer = document.getElementById('searchContainer');
+            
             if (searchInput) {
                 let searchTimeout;
+                
+                // Function to perform search
+                function performSearch() {
+                    const searchTerm = searchInput.value.trim();
+                    const urlParams = new URLSearchParams(window.location.search);
+                    
+                    if (searchTerm) {
+                        urlParams.set('search', searchTerm);
+                    } else {
+                        urlParams.delete('search');
+                    }
+                    
+                    // Reset to first page when searching
+                    urlParams.set('page', '1');
+                    
+                    // Preserve other parameters
+                    const sort = urlParams.get('sort') || 'date';
+                    const order = urlParams.get('order') || 'desc';
+                    const per_page = urlParams.get('per_page') || '10';
+                    
+                    urlParams.set('sort', sort);
+                    urlParams.set('order', order);
+                    urlParams.set('per_page', per_page);
+                    
+                    // Add loading indicator
+                    document.body.classList.add('searching');
+                    
+                    // Navigate to search results
+                    window.location.href = window.location.pathname + '?' + urlParams.toString();
+                }
+                
+                // Debounced search
                 searchInput.addEventListener('input', function() {
                     clearTimeout(searchTimeout);
+                    
+                    // Add loading class to container
+                    if (searchContainer) {
+                        searchContainer.classList.add('search-loading');
+                    }
+                    document.body.classList.add('searching');
+                    
                     searchTimeout = setTimeout(() => {
-                        document.getElementById('searchForm').submit();
+                        if (searchContainer) {
+                            searchContainer.classList.remove('search-loading');
+                        }
+                        performSearch();
                     }, 500);
                 });
+                
+                // Prevent form submission on enter (since we're doing real-time)
+                const searchForm = document.getElementById('searchForm');
+                if (searchForm) {
+                    searchForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        if (searchContainer) {
+                            searchContainer.classList.remove('search-loading');
+                        }
+                        performSearch();
+                    });
+                }
+                
+                // Add clear button functionality
+                const clearSearch = document.getElementById('clearSearchBtn');
+                if (clearSearch) {
+                    clearSearch.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        searchInput.value = '';
+                        if (searchContainer) {
+                            searchContainer.classList.remove('search-loading');
+                        }
+                        performSearch();
+                    });
+                }
             }
         });
 

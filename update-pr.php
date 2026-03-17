@@ -69,13 +69,11 @@ try {
         }
     }
     
-    // Commit transaction
-    $conn->commit();
-    
-    echo json_encode([
-        'success' => true,
-        'message' => 'Purchase Request updated successfully!'
-    ]);
+    // After successful update
+    $_SESSION['toast_message'] = 'Purchase Request updated successfully!';
+    $_SESSION['toast_type'] = 'success';
+    header('Location: view-table.php');
+    exit;
     
 } catch (Exception $e) {
     // Rollback on error
