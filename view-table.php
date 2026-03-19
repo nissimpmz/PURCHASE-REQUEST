@@ -537,7 +537,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                                        id="edit_so_number" 
                                        name="so_number" 
                                        class="form-control"
-                                       placeholder="Enter Sales Order Number">
+                                       placeholder="Enter Special Order Number">
                             </div>
                             <div class="form-group">
                                 <!-- Empty column for spacing -->

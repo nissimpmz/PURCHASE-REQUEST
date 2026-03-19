@@ -339,13 +339,13 @@ $suppliers = getSuppliers();
             <div class="form-row">
                 <div class="form-group">
                     <label for="edit_so_number">
-                        <i class="fas fa-hashtag" style="color: #3498db;"></i> SO # (Sales Order)
+                        <i class="fas fa-hashtag" style="color: #3498db;"></i> SO # (Special Order)
                     </label>
                     <input type="text" 
                            id="edit_so_number" 
                            name="so_number" 
                            class="so-number-field"
-                           placeholder="Enter Sales Order Number"
+                           placeholder="Enter Special Order Number"
                            value="">
                     <div class="field-hint">
                         <i class="fas fa-info-circle"></i> Enter the Sales Order number manually
