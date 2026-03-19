@@ -348,7 +348,7 @@ $suppliers = getSuppliers();
                            placeholder="Enter Special Order Number"
                            value="">
                     <div class="field-hint">
-                        <i class="fas fa-info-circle"></i> Enter the Sales Order number manually
+                        <i class="fas fa-info-circle"></i> Enter the Special Order number manually
                     </div>
                 </div>
                 <div class="form-group">

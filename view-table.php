@@ -531,7 +531,7 @@ $suppliers = getSuppliers(); // Get suppliers for the dropdown
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="edit_so_number">
-                                    <i class="fas fa-hashtag" style="color: #3498db;"></i> SO # (Sales Order)
+                                    <i class="fas fa-hashtag" style="color: #3498db;"></i> SO # (Special Order)
                                 </label>
                                 <input type="text" 
                                        id="edit_so_number" 
